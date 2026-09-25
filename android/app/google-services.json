@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1012761432888",
+    "project_id": "masroufi-be20c",
+    "storage_bucket": "masroufi-be20c.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1012761432888:android:967f23b520f471da01e7cd",
+        "android_client_info": {
+          "package_name": "com.example.masroufi"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCMnUYiZYVaGU4mmBzK3DByVzQifdU7ti0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
