@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../data/remote/auth_service.dart';
+import '../core/constants/colors.dart'; // Import your colors file
 
 class AuthPage extends StatefulWidget {
   const AuthPage({super.key});
@@ -17,6 +18,7 @@ class _AuthPageState extends State<AuthPage> {
   bool _isLogin = true;
   bool _isLoading = false;
   String? _errorMessage;
+  final String appFont = 'Poppins'; // Custom font consistency
 
   void _submit() async {
     setState(() {
@@ -41,10 +43,15 @@ class _AuthPageState extends State<AuthPage> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final inputFill = theme.colorScheme.surfaceContainerHighest;
+    // Theme setup
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bgColor = isDark ? AppColors.darkBackground : AppColors.lightBackground;
+    final inputFill = isDark ? AppColors.darkInputFill : AppColors.lightInputFill;
+    final textColor = isDark ? AppColors.darkText : AppColors.lightText;
+    final textSecondary = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
 
     return Scaffold(
+      backgroundColor: bgColor,
       body: Center(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
@@ -54,7 +61,12 @@ class _AuthPageState extends State<AuthPage> {
             children: [
               Text(
                 _isLogin ? 'Welcome Back' : 'Create Account',
-                style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: theme.colorScheme.onSurface),
+                style: TextStyle(
+                  fontSize: 32, 
+                  fontWeight: FontWeight.bold, 
+                  color: AppColors.primaryBlue, // Use brand blue for main headers
+                  fontFamily: appFont
+                ),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 32),
@@ -62,7 +74,14 @@ class _AuthPageState extends State<AuthPage> {
               if (!_isLogin) ...[
                 TextField(
                   controller: _nameController,
-                  decoration: InputDecoration(labelText: 'Full Name', filled: true, fillColor: inputFill, border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none)),
+                  style: TextStyle(color: textColor, fontFamily: appFont),
+                  decoration: InputDecoration(
+                    labelText: 'Full Name', 
+                    labelStyle: TextStyle(color: textSecondary, fontFamily: appFont),
+                    filled: true, 
+                    fillColor: inputFill, 
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none)
+                  ),
                 ),
                 const SizedBox(height: 16),
               ],
@@ -70,37 +89,68 @@ class _AuthPageState extends State<AuthPage> {
               TextField(
                 controller: _emailController,
                 keyboardType: TextInputType.emailAddress,
-                decoration: InputDecoration(labelText: 'Email', filled: true, fillColor: inputFill, border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none)),
+                style: TextStyle(color: textColor, fontFamily: appFont),
+                decoration: InputDecoration(
+                  labelText: 'Email', 
+                  labelStyle: TextStyle(color: textSecondary, fontFamily: appFont),
+                  filled: true, 
+                  fillColor: inputFill, 
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none)
+                ),
               ),
               const SizedBox(height: 16),
               
               TextField(
                 controller: _passwordController,
                 obscureText: true,
-                decoration: InputDecoration(labelText: 'Password', filled: true, fillColor: inputFill, border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none)),
+                style: TextStyle(color: textColor, fontFamily: appFont),
+                decoration: InputDecoration(
+                  labelText: 'Password', 
+                  labelStyle: TextStyle(color: textSecondary, fontFamily: appFont),
+                  filled: true, 
+                  fillColor: inputFill, 
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none)
+                ),
               ),
               const SizedBox(height: 24),
 
               if (_errorMessage != null)
                 Padding(
                   padding: const EdgeInsets.only(bottom: 16),
-                  child: Text(_errorMessage!, style: const TextStyle(color: Colors.red), textAlign: TextAlign.center),
+                  child: Text(
+                    _errorMessage!, 
+                    style: TextStyle(color: AppColors.errorRed, fontFamily: appFont), 
+                    textAlign: TextAlign.center
+                  ),
                 ),
 
               ElevatedButton(
                 onPressed: _isLoading ? null : _submit,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: theme.colorScheme.primary,
-                  foregroundColor: theme.colorScheme.onPrimary,
+                  backgroundColor: AppColors.primaryBlue,
+                  foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),
-                child: _isLoading ? const CircularProgressIndicator() : Text(_isLogin ? 'Login' : 'Sign Up', style: const TextStyle(fontWeight: FontWeight.bold)),
+                child: _isLoading 
+                  ? const SizedBox(
+                      height: 20, 
+                      width: 20, 
+                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)
+                    ) 
+                  : Text(
+                      _isLogin ? 'Login' : 'Sign Up', 
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, fontFamily: appFont)
+                    ),
               ),
               const SizedBox(height: 16),
               
               TextButton(
                 onPressed: () => setState(() => _isLogin = !_isLogin),
-                child: Text(_isLogin ? 'Need an account? Sign up' : 'Already have an account? Login', style: TextStyle(color: theme.colorScheme.primary)),
+                child: Text(
+                  _isLogin ? 'Need an account? Sign up' : 'Already have an account? Login', 
+                  style: TextStyle(color: AppColors.primaryTeal, fontWeight: FontWeight.w600, fontFamily: appFont)
+                ),
               )
             ],
           ),

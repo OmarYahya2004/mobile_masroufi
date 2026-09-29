@@ -3,6 +3,7 @@ import '../data/models/expense.dart';
 import '../widgets/add_expense_modal.dart';
 import '../screens/profile_page.dart';
 import '../data/remote/firebase_service.dart';
+import '../core/constants/colors.dart'; // Import your new colors file
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -12,47 +13,42 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  // 1. Initialize your Firebase Service
   final FirebaseService _firebaseService = FirebaseService();
+  // Set your unique font here (ensure it is loaded in pubspec.yaml)
+  final String appFont = 'Poppins'; 
 
-  // 2. Remove the mock _expenses list completely.
-
-  void _openAddExpenseOverlay() {
+  void _openAddExpenseOverlay(Color surfaceColor) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Theme.of(context).colorScheme.surface,
+      backgroundColor: surfaceColor,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (ctx) => AddExpenseModal(
         onAddExpense: (expense) async {
-          // 3. Save the new expense to Firebase instead of a local list
           await _firebaseService.addExpense(expense);
-          
-          // Note: You no longer need setState() here because the StreamBuilder 
-          // will automatically detect the new data in Firebase and update the UI.
         },
       ),
     );
   }
 
-  Future<void> _confirmAndDelete(BuildContext context, Expense expense) async {
+  Future<void> _confirmAndDelete(BuildContext context, Expense expense, Color surfaceColor, Color textColor) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: Theme.of(context).colorScheme.surface,
-        title: Text('Delete Expense', style: TextStyle(color: Theme.of(context).colorScheme.onSurface)),
-        content: Text('Are you sure you want to delete this expense?', style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.8))),
+        backgroundColor: surfaceColor,
+        title: Text('Delete Expense', style: TextStyle(color: textColor, fontFamily: appFont, fontWeight: FontWeight.bold)),
+        content: Text('Are you sure you want to delete this expense?', style: TextStyle(color: textColor.withValues(alpha: 0.8), fontFamily: appFont)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: Text('Cancel', style: TextStyle(color: Theme.of(context).colorScheme.primary)),
+            child: Text('Cancel', style: TextStyle(color: AppColors.primaryTeal, fontFamily: appFont)),
           ),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Theme.of(context).colorScheme.error),
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.errorRed),
             onPressed: () => Navigator.pop(ctx, true),
-            child: Text('Delete', style: TextStyle(color: Theme.of(context).colorScheme.onError)),
+            child: Text('Delete', style: TextStyle(color: Colors.white, fontFamily: appFont)),
           ),
         ],
       ),
@@ -62,13 +58,25 @@ class _HomePageState extends State<HomePage> {
       await _firebaseService.deleteExpense(expense.id);
     }
   }
+
   @override
   Widget build(BuildContext context) {
+    // Determine if the device is in dark mode
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
+    // Assign colors based on mode directly from your file
+    final bgColor = isDark ? AppColors.darkBackground : AppColors.lightBackground;
+    final surfaceColor = isDark ? AppColors.darkSurface : AppColors.lightSurface;
+    final textColor = isDark ? AppColors.darkText : AppColors.lightText;
+    final textSecondary = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
+
     final secondaryTextStyle = TextStyle(
-      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6)
+      color: textSecondary,
+      fontFamily: appFont,
     );
 
     return Scaffold(
+      backgroundColor: bgColor,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -79,16 +87,16 @@ class _HomePageState extends State<HomePage> {
               'Masroufi', 
               style: TextStyle(
                 fontWeight: FontWeight.bold, 
-                fontSize: 24, 
-                color: Theme.of(context).colorScheme.onSurface,
+                fontSize: 26, 
+                color: AppColors.primaryBlue, // Use logo's deep blue for the brand name
+                fontFamily: appFont,
               ),
             ),
           ],
         ),
         actions: [
-          // Profile Icon
           IconButton(
-            icon: Icon(Icons.person_outline, color: Theme.of(context).colorScheme.onSurface),
+            icon: Icon(Icons.person_outline, color: textColor),
             onPressed: () {
               Navigator.push(
                 context,
@@ -103,7 +111,7 @@ class _HomePageState extends State<HomePage> {
         stream: _firebaseService.getExpenses(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
+            return Center(child: CircularProgressIndicator(color: AppColors.primaryTeal));
           }
 
           if (snapshot.hasError) {
@@ -113,27 +121,20 @@ class _HomePageState extends State<HomePage> {
           final expenses = snapshot.data ?? [];
           final now = DateTime.now();
 
-          // Calculate Totals
           double spentToday = 0;
           double spentThisWeek = 0;
           double spentThisMonth = 0;
 
-          // Find the start of the current week (Assuming Monday is the start)
           final startOfWeek = now.subtract(Duration(days: now.weekday - 1));
           final startOfWeekDate = DateTime(startOfWeek.year, startOfWeek.month, startOfWeek.day);
 
           for (var exp in expenses) {
-            // Today
             if (exp.date.year == now.year && exp.date.month == now.month && exp.date.day == now.day) {
               spentToday += exp.amount;
             }
-            
-            // This Month
             if (exp.date.year == now.year && exp.date.month == now.month) {
               spentThisMonth += exp.amount;
             }
-
-            // This Week
             final expenseDateOnly = DateTime(exp.date.year, exp.date.month, exp.date.day);
             if (!expenseDateOnly.isBefore(startOfWeekDate) && expenseDateOnly.isBefore(now.add(const Duration(days: 1)))) {
               spentThisWeek += exp.amount;
@@ -148,16 +149,27 @@ class _HomePageState extends State<HomePage> {
                 Container(
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.surface,
+                    // Use a gradient based on the logo colors for the main card
+                    gradient: const LinearGradient(
+                      colors: [AppColors.primaryBlue, AppColors.primaryTeal],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
                     borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppColors.primaryBlue.withValues(alpha: 0.3),
+                        blurRadius: 10,
+                        offset: const Offset(0, 5),
+                      )
+                    ]
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Spent this month', style: secondaryTextStyle),
+                      Text('Spent this month', style: TextStyle(color: Colors.white70, fontFamily: appFont)),
                       const SizedBox(height: 8),
-                      // Dynamic Monthly Total
-                      Text('${spentThisMonth.toStringAsFixed(0)} EGP', style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.onSurface)),
+                      Text('${spentThisMonth.toStringAsFixed(0)} EGP', style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.white, fontFamily: appFont)),
                       const SizedBox(height: 20),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -165,17 +177,15 @@ class _HomePageState extends State<HomePage> {
                           Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text('Today', style: secondaryTextStyle),
-                              // Dynamic Daily Total
-                              Text('${spentToday.toStringAsFixed(0)} EGP', style: TextStyle(fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.onSurface)),
+                              Text('Today', style: TextStyle(color: Colors.white70, fontFamily: appFont)),
+                              Text('${spentToday.toStringAsFixed(0)} EGP', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontFamily: appFont)),
                             ],
                           ),
                           Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text('This week', style: secondaryTextStyle),
-                              // Dynamic Weekly Total
-                              Text('${spentThisWeek.toStringAsFixed(0)} EGP', style: TextStyle(fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.onSurface)),
+                              Text('This week', style: TextStyle(color: Colors.white70, fontFamily: appFont)),
+                              Text('${spentThisWeek.toStringAsFixed(0)} EGP', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontFamily: appFont)),
                             ],
                           ),
                         ],
@@ -185,23 +195,22 @@ class _HomePageState extends State<HomePage> {
                         width: double.infinity,
                         child: ElevatedButton(
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: Theme.of(context).colorScheme.primary,
-                            foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                            backgroundColor: AppColors.accentCyan, // Bright color from arrow logo
+                            foregroundColor: AppColors.primaryBlue,
                             padding: const EdgeInsets.symmetric(vertical: 16),
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                           ),
-                          onPressed: _openAddExpenseOverlay,
-                          child: const Text('+ Add expense', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                          onPressed: () => _openAddExpenseOverlay(surfaceColor),
+                          child: Text('+ Add expense', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, fontFamily: appFont)),
                         ),
                       )
                     ],
                   ),
                 ),
                 const SizedBox(height: 24),
-                Text('Recent', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.onSurface)),
+                Text('Recent', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: textColor, fontFamily: appFont)),
                 const SizedBox(height: 16),
                 
-                // Recent expenses list
                 Expanded(
                   child: expenses.isEmpty
                       ? Center(child: Text('No recent expenses.', style: secondaryTextStyle))
@@ -209,22 +218,29 @@ class _HomePageState extends State<HomePage> {
                           itemCount: expenses.length,
                           itemBuilder: (ctx, index) {
                             final exp = expenses[index];
-                            return ListTile(
-                              leading: Text(exp.categoryIcon, style: const TextStyle(fontSize: 24)),
-                              title: Text(exp.categoryName, style: TextStyle(fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.onSurface)),
-                              subtitle: Text(
-                                '${exp.date.year}-${exp.date.month.toString().padLeft(2, '0')}-${exp.date.day.toString().padLeft(2, '0')}',
-                                style: secondaryTextStyle,
+                            return Container(
+                              margin: const EdgeInsets.only(bottom: 12),
+                              decoration: BoxDecoration(
+                                color: surfaceColor,
+                                borderRadius: BorderRadius.circular(12),
                               ),
-                              trailing: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Text('${exp.amount.toStringAsFixed(0)} EGP', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Theme.of(context).colorScheme.onSurface)),
-                                  IconButton(
-                                  icon: Icon(Icons.close, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4)),
-                                  onPressed: () => _confirmAndDelete(context, exp),
+                              child: ListTile(
+                                leading: Text(exp.categoryIcon, style: const TextStyle(fontSize: 24)),
+                                title: Text(exp.categoryName, style: TextStyle(fontWeight: FontWeight.bold, color: textColor, fontFamily: appFont)),
+                                subtitle: Text(
+                                  '${exp.date.year}-${exp.date.month.toString().padLeft(2, '0')}-${exp.date.day.toString().padLeft(2, '0')}',
+                                  style: secondaryTextStyle,
                                 ),
-                                ],
+                                trailing: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text('${exp.amount.toStringAsFixed(0)} EGP', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: textColor, fontFamily: appFont)),
+                                    IconButton(
+                                      icon: Icon(Icons.close, color: textSecondary.withValues(alpha: 0.4)),
+                                      onPressed: () => _confirmAndDelete(context, exp, surfaceColor, textColor),
+                                    ),
+                                  ],
+                                ),
                               ),
                             );
                           },

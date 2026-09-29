@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../data/remote/firebase_service.dart';
 import '../data/models/expense.dart';
+import '../core/constants/colors.dart'; // Import your colors file
 
 enum DateFilter { today, thisWeek, month, allTime }
 
@@ -15,8 +16,8 @@ class _HistoryPageState extends State<HistoryPage> {
   DateFilter _selectedDateFilter = DateFilter.month;
   ExpenseCategory? _selectedCategory; // null means 'All'
   final FirebaseService _firebaseService = FirebaseService();
+  final String appFont = 'Poppins'; // Custom font consistency
 
-  // Helper to check if a date falls within the selected filter
   bool _matchesDateFilter(DateTime date) {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
@@ -35,22 +36,22 @@ class _HistoryPageState extends State<HistoryPage> {
     }
   }
 
-  Future<void> _confirmAndDelete(BuildContext context, Expense expense) async {
+  Future<void> _confirmAndDelete(BuildContext context, Expense expense, Color surfaceColor, Color textColor) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: Theme.of(context).colorScheme.surface,
-        title: Text('Delete Expense', style: TextStyle(color: Theme.of(context).colorScheme.onSurface)),
-        content: Text('Are you sure you want to delete this expense?', style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.8))),
+        backgroundColor: surfaceColor,
+        title: Text('Delete Expense', style: TextStyle(color: textColor, fontFamily: appFont, fontWeight: FontWeight.bold)),
+        content: Text('Are you sure you want to delete this expense?', style: TextStyle(color: textColor.withValues(alpha: 0.8), fontFamily: appFont)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: Text('Cancel', style: TextStyle(color: Theme.of(context).colorScheme.primary)),
+            child: Text('Cancel', style: TextStyle(color: AppColors.primaryTeal, fontFamily: appFont)),
           ),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Theme.of(context).colorScheme.error),
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.errorRed),
             onPressed: () => Navigator.pop(ctx, true),
-            child: Text('Delete', style: TextStyle(color: Theme.of(context).colorScheme.onError)),
+            child: Text('Delete', style: TextStyle(color: Colors.white, fontFamily: appFont)),
           ),
         ],
       ),
@@ -63,13 +64,18 @@ class _HistoryPageState extends State<HistoryPage> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final onSurface = theme.colorScheme.onSurface;
-    final secondaryText = onSurface.withValues(alpha: 0.6);
+    // Theme setup
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bgColor = isDark ? AppColors.darkBackground : AppColors.lightBackground;
+    final surfaceColor = isDark ? AppColors.darkSurface : AppColors.lightSurface;
+    final chipBgColor = isDark ? AppColors.darkInputFill : AppColors.lightInputFill;
+    final textColor = isDark ? AppColors.darkText : AppColors.lightText;
+    final textSecondary = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
 
     return Scaffold(
+      backgroundColor: bgColor,
       appBar: AppBar(
-        title: Text('History', style: TextStyle(fontWeight: FontWeight.bold, color: onSurface)),
+        title: Text('History', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.primaryBlue, fontFamily: appFont)),
         backgroundColor: Colors.transparent,
         elevation: 0,
       ),
@@ -88,9 +94,13 @@ class _HistoryPageState extends State<HistoryPage> {
                   child: ChoiceChip(
                     label: Text(_getFilterName(filter)),
                     selected: isSelected,
-                    selectedColor: theme.colorScheme.primary,
-                    labelStyle: TextStyle(color: isSelected ? theme.colorScheme.onPrimary : onSurface),
-                    backgroundColor: theme.colorScheme.surfaceContainerHighest,
+                    selectedColor: AppColors.primaryBlue, // Brand blue for date filters
+                    labelStyle: TextStyle(
+                      color: isSelected ? Colors.white : textColor, 
+                      fontFamily: appFont,
+                      fontWeight: isSelected ? FontWeight.bold : FontWeight.normal
+                    ),
+                    backgroundColor: chipBgColor,
                     side: BorderSide.none,
                     onSelected: (_) => setState(() => _selectedDateFilter = filter),
                   ),
@@ -106,8 +116,8 @@ class _HistoryPageState extends State<HistoryPage> {
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Row(
               children: [
-                _buildCategoryChip('All Categories', null, theme),
-                ...ExpenseCategory.values.map((cat) => _buildCategoryChip(cat.name, cat, theme)),
+                _buildCategoryChip('All Categories', null, chipBgColor, textColor),
+                ...ExpenseCategory.values.map((cat) => _buildCategoryChip(cat.name, cat, chipBgColor, textColor)),
               ],
             ),
           ),
@@ -119,7 +129,7 @@ class _HistoryPageState extends State<HistoryPage> {
               stream: FirebaseService().getExpenses(),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
+                  return const Center(child: CircularProgressIndicator(color: AppColors.primaryTeal));
                 }
                 
                 final allExpenses = snapshot.data ?? [];
@@ -131,7 +141,7 @@ class _HistoryPageState extends State<HistoryPage> {
                 }).toList();
 
                 if (filteredExpenses.isEmpty) {
-                  return Center(child: Text('No expenses found for these filters.', style: TextStyle(color: secondaryText)));
+                  return Center(child: Text('No expenses found for these filters.', style: TextStyle(color: textSecondary, fontFamily: appFont)));
                 }
 
                 // Group by Date
@@ -152,38 +162,46 @@ class _HistoryPageState extends State<HistoryPage> {
                     final dailyExpenses = grouped[date]!;
                     final dailyTotal = dailyExpenses.fold(0.0, (sum, exp) => sum + exp.amount);
 
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Group Header
-                        Padding(
-                          padding: const EdgeInsets.only(top: 16, bottom: 8),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text('${date.day}/${date.month}/${date.year}', style: TextStyle(fontWeight: FontWeight.bold, color: onSurface)),
-                              Text('${dailyTotal.toStringAsFixed(0)} EGP', style: TextStyle(fontWeight: FontWeight.bold, color: onSurface)),
-                            ],
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 16),
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: surfaceColor,
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Group Header
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 12),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text('${date.day}/${date.month}/${date.year}', style: TextStyle(fontWeight: FontWeight.bold, color: textColor, fontFamily: appFont)),
+                                Text('${dailyTotal.toStringAsFixed(0)} EGP', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.primaryTeal, fontFamily: appFont)),
+                              ],
+                            ),
                           ),
-                        ),
-                        // Daily Items
-                        ...dailyExpenses.map((exp) => ListTile(
-                          contentPadding: EdgeInsets.zero,
-                          leading: Text(exp.categoryIcon, style: const TextStyle(fontSize: 24)),
-                          title: Text(exp.categoryName, style: TextStyle(fontWeight: FontWeight.bold, color: onSurface)),
-                          subtitle: Text((exp.note == null || exp.note!.isEmpty) ? 'Expense' : exp.note!, style: TextStyle(color: secondaryText)),
-                          trailing: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text('${exp.amount.toStringAsFixed(0)} EGP', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: onSurface)),
-                              IconButton(
-                                icon: Icon(Icons.close, color: secondaryText),
-                                onPressed: () => _confirmAndDelete(context, exp),
-                              ),
-                            ],
-                          ),
-                        )),
-                      ],
+                          // Daily Items
+                          ...dailyExpenses.map((exp) => ListTile(
+                            contentPadding: EdgeInsets.zero,
+                            leading: Text(exp.categoryIcon, style: const TextStyle(fontSize: 24)),
+                            title: Text(exp.categoryName, style: TextStyle(fontWeight: FontWeight.bold, color: textColor, fontFamily: appFont)),
+                            subtitle: Text((exp.note == null || exp.note!.isEmpty) ? 'Expense' : exp.note!, style: TextStyle(color: textSecondary, fontFamily: appFont)),
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text('${exp.amount.toStringAsFixed(0)} EGP', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: textColor, fontFamily: appFont)),
+                                IconButton(
+                                  icon: Icon(Icons.close, color: textSecondary.withValues(alpha: 0.5)),
+                                  onPressed: () => _confirmAndDelete(context, exp, surfaceColor, textColor),
+                                ),
+                              ],
+                            ),
+                          )),
+                        ],
+                      ),
                     );
                   },
                 );
@@ -204,16 +222,20 @@ class _HistoryPageState extends State<HistoryPage> {
     }
   }
 
-  Widget _buildCategoryChip(String label, ExpenseCategory? category, ThemeData theme) {
+  Widget _buildCategoryChip(String label, ExpenseCategory? category, Color chipBgColor, Color textColor) {
     final isSelected = _selectedCategory == category;
     return Padding(
       padding: const EdgeInsets.only(right: 8),
       child: ChoiceChip(
         label: Text(label),
         selected: isSelected,
-        selectedColor: theme.colorScheme.secondaryContainer,
-        labelStyle: TextStyle(color: isSelected ? theme.colorScheme.onSecondaryContainer : theme.colorScheme.onSurface),
-        backgroundColor: theme.colorScheme.surfaceContainerHighest,
+        selectedColor: AppColors.primaryTeal, // Brand teal for category filters
+        labelStyle: TextStyle(
+          color: isSelected ? Colors.white : textColor,
+          fontFamily: appFont,
+          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal
+        ),
+        backgroundColor: chipBgColor,
         side: BorderSide.none,
         onSelected: (_) => setState(() => _selectedCategory = category),
       ),

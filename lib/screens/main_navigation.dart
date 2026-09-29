@@ -3,6 +3,7 @@ import '../screens/home_page.dart';
 import '../screens/history_page.dart';
 import '../screens/analytics_page.dart';
 import '../screens/goals_page.dart';
+import '../core/constants/colors.dart'; // Import your new colors file
 
 class MainNavigation extends StatefulWidget {
   const MainNavigation({super.key});
@@ -13,9 +14,8 @@ class MainNavigation extends StatefulWidget {
 
 class _MainNavigationState extends State<MainNavigation> {
   int _currentIndex = 0;
-  
-  // 1. Define a PageController
   late PageController _pageController;
+  final String appFont = 'Poppins'; // Ensure the custom font is consistent
 
   final List<Widget> _pages = const [
     HomePage(),
@@ -27,13 +27,11 @@ class _MainNavigationState extends State<MainNavigation> {
   @override
   void initState() {
     super.initState();
-    // 2. Initialize the controller to start at the current index
     _pageController = PageController(initialPage: _currentIndex);
   }
 
   @override
   void dispose() {
-    // 3. Dispose of the controller to prevent memory leaks
     _pageController.dispose();
     super.dispose();
   }
@@ -42,7 +40,6 @@ class _MainNavigationState extends State<MainNavigation> {
     setState(() {
       _currentIndex = index;
     });
-    // 4. Animate to the corresponding page when a bottom tab is tapped
     _pageController.animateToPage(
       index,
       duration: const Duration(milliseconds: 300),
@@ -52,14 +49,19 @@ class _MainNavigationState extends State<MainNavigation> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    // Determine if the device is in dark mode
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
+    // Assign colors dynamically from AppColors
+    final bgColor = isDark ? AppColors.darkBackground : AppColors.lightBackground;
+    final surfaceColor = isDark ? AppColors.darkSurface : AppColors.lightSurface;
+    final unselectedColor = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
 
     return Scaffold(
-      // 5. Replace the static body with a PageView
+      backgroundColor: bgColor, // Update Scaffold background
       body: PageView(
         controller: _pageController,
         onPageChanged: (index) {
-          // 6. Update the bottom navigation bar when the user swipes
           setState(() {
             _currentIndex = index;
           });
@@ -70,9 +72,13 @@ class _MainNavigationState extends State<MainNavigation> {
         currentIndex: _currentIndex,
         onTap: _onTabTapped,
         type: BottomNavigationBarType.fixed,
-        backgroundColor: theme.colorScheme.surfaceContainerHighest,
-        selectedItemColor: theme.colorScheme.primary,
-        unselectedItemColor: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+        backgroundColor: surfaceColor,
+        // Use brand colors for navigation states
+        selectedItemColor: AppColors.primaryBlue, 
+        unselectedItemColor: unselectedColor.withValues(alpha: 0.6),
+        // Apply custom font to labels
+        selectedLabelStyle: TextStyle(fontFamily: appFont, fontWeight: FontWeight.bold),
+        unselectedLabelStyle: TextStyle(fontFamily: appFont),
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
           BottomNavigationBarItem(icon: Icon(Icons.receipt_long), label: 'History'),

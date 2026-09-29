@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../data/remote/firebase_service.dart';
 import '../data/models/expense.dart';
 import '../widgets/set_budget_modal.dart';
+import '../core/constants/colors.dart'; // Import your colors file
 
 class GoalsPage extends StatefulWidget {
   const GoalsPage({super.key});
@@ -12,8 +13,7 @@ class GoalsPage extends StatefulWidget {
 
 class _GoalsPageState extends State<GoalsPage> {
   final FirebaseService _firebaseService = FirebaseService();
-
-  // 1. Removed the hardcoded _budgetLimits Map here
+  final String appFont = 'Poppins'; // Custom font consistency
 
   String _getCategoryIcon(ExpenseCategory category) {
     switch (category) {
@@ -35,11 +35,11 @@ class _GoalsPageState extends State<GoalsPage> {
     }
   }
 
-  void _openSetBudgetModal() {
+  void _openSetBudgetModal(Color surfaceColor) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Theme.of(context).colorScheme.surface,
+      backgroundColor: surfaceColor,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
@@ -51,22 +51,22 @@ class _GoalsPageState extends State<GoalsPage> {
     );
   }
 
-  Future<void> _confirmAndDeleteBudget(BuildContext context, ExpenseCategory category) async {
+  Future<void> _confirmAndDeleteBudget(BuildContext context, ExpenseCategory category, Color surfaceColor, Color textColor) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: Theme.of(context).colorScheme.surface,
-        title: Text('Delete Budget Limit', style: TextStyle(color: Theme.of(context).colorScheme.onSurface)),
-        content: Text('Are you sure you want to delete the budget limit for ${category.name}?', style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.8))),
+        backgroundColor: surfaceColor,
+        title: Text('Delete Budget Limit', style: TextStyle(color: textColor, fontFamily: appFont, fontWeight: FontWeight.bold)),
+        content: Text('Are you sure you want to delete the budget limit for ${category.name}?', style: TextStyle(color: textColor.withValues(alpha: 0.8), fontFamily: appFont)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: Text('Cancel', style: TextStyle(color: Theme.of(context).colorScheme.primary)),
+            child: Text('Cancel', style: TextStyle(color: AppColors.primaryTeal, fontFamily: appFont)),
           ),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Theme.of(context).colorScheme.error),
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.errorRed),
             onPressed: () => Navigator.pop(ctx, true),
-            child: Text('Delete', style: TextStyle(color: Theme.of(context).colorScheme.onError)),
+            child: Text('Delete', style: TextStyle(color: Colors.white, fontFamily: appFont)),
           ),
         ],
       ),
@@ -79,13 +79,16 @@ class _GoalsPageState extends State<GoalsPage> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final onSurface = theme.colorScheme.onSurface;
-    final secondaryText = onSurface.withValues(alpha: 0.6);
+    // Theme setup
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bgColor = isDark ? AppColors.darkBackground : AppColors.lightBackground;
+    final surfaceColor = isDark ? AppColors.darkSurface : AppColors.lightSurface;
+    final textColor = isDark ? AppColors.darkText : AppColors.lightText;
+    final textSecondary = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
 
     return Scaffold(
+      backgroundColor: bgColor,
       body: SafeArea(
-        // 3. Nest StreamBuilders to listen to both Expenses and Budgets
         child: StreamBuilder<List<Expense>>(
           stream: _firebaseService.getExpenses(),
           builder: (context, expensesSnapshot) {
@@ -97,11 +100,11 @@ class _GoalsPageState extends State<GoalsPage> {
                 // Show a loading indicator while either stream is initializing
                 if (expensesSnapshot.connectionState == ConnectionState.waiting || 
                     limitsSnapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
+                  return const Center(child: CircularProgressIndicator(color: AppColors.primaryTeal));
                 }
 
                 final allExpenses = expensesSnapshot.data ?? [];
-                // 4. Load budget limits from Firebase snapshot
+                // Load budget limits from Firebase snapshot
                 final firebaseBudgetLimits = limitsSnapshot.data ?? {}; 
                 final now = DateTime.now();
                 
@@ -117,19 +120,19 @@ class _GoalsPageState extends State<GoalsPage> {
                 return ListView(
                   padding: const EdgeInsets.all(24),
                   children: [
-                    Text('Goals', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: onSurface)),
+                    Text('Goals', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: AppColors.primaryBlue, fontFamily: appFont)),
                     const SizedBox(height: 4),
-                    Text('Monthly budget limits', style: TextStyle(color: secondaryText, fontSize: 14)),
+                    Text('Monthly budget limits', style: TextStyle(color: textSecondary, fontSize: 14, fontFamily: appFont)),
                     const SizedBox(height: 32),
 
-                    // 5. Check if user has no goals set yet
+                    // Check if user has no goals set yet
                     if (firebaseBudgetLimits.isEmpty)
                       Padding(
                         padding: const EdgeInsets.only(bottom: 24),
-                        child: Text('No budget limits set yet.', style: TextStyle(color: secondaryText)),
+                        child: Text('No budget limits set yet.', style: TextStyle(color: textSecondary, fontFamily: appFont)),
                       ),
 
-                    // 6. Map over the Firebase budget limits
+                    // Map over the Firebase budget limits
                     ...firebaseBudgetLimits.entries.map((entry) {
                       final category = entry.key;
                       final limit = entry.value;
@@ -143,7 +146,7 @@ class _GoalsPageState extends State<GoalsPage> {
                         margin: const EdgeInsets.only(bottom: 16),
                         padding: const EdgeInsets.all(20),
                         decoration: BoxDecoration(
-                          color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+                          color: surfaceColor,
                           borderRadius: BorderRadius.circular(16),
                         ),
                         child: Column(
@@ -152,48 +155,49 @@ class _GoalsPageState extends State<GoalsPage> {
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                Text('${_getCategoryIcon(category)} ${category.name}', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: onSurface)),
+                                Text('${_getCategoryIcon(category)} ${category.name}', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: textColor, fontFamily: appFont)),
                                 Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    // 1. Conditionally show the red exclamation mark
+                                    // Conditionally show the red exclamation mark
                                     if (spent > limit)
                                       const Padding(
                                         padding: EdgeInsets.only(right: 8.0),
                                         child: CircleAvatar(
-                                          backgroundColor: Colors.red,
+                                          backgroundColor: AppColors.errorRed,
                                           radius: 10,
                                           child: Icon(Icons.priority_high, color: Colors.white, size: 14, weight: 900),
                                         ),
                                       ),
                                     
-                                    // 2. Optionally make the percentage text red if over budget
+                                    // Optionally make the percentage text red if over budget
                                     Text(
                                       '$percentageText%', 
                                       style: TextStyle(
                                         fontWeight: FontWeight.bold, 
                                         fontSize: 16, 
-                                        color: spent > limit ? Colors.red : onSurface,
+                                        fontFamily: appFont,
+                                        color: spent > limit ? AppColors.errorRed : textColor,
                                       ),
                                     ),
                                     const SizedBox(width: 8),
                                     IconButton(
                                       constraints: const BoxConstraints(),
                                       padding: EdgeInsets.zero,
-                                      icon: Icon(Icons.close, color: onSurface.withValues(alpha: 0.4)),
-                                      onPressed: () => _confirmAndDeleteBudget(context, category),
+                                      icon: Icon(Icons.close, color: textSecondary.withValues(alpha: 0.5)),
+                                      onPressed: () => _confirmAndDeleteBudget(context, category, surfaceColor, textColor),
                                     ),
                                   ],
                                 ),
                               ],
                             ),
                             const SizedBox(height: 8),
-                            Text('${spent.toStringAsFixed(0)} EGP of ${limit.toStringAsFixed(0)} EGP', style: TextStyle(color: secondaryText, fontSize: 14)),
+                            Text('${spent.toStringAsFixed(0)} EGP of ${limit.toStringAsFixed(0)} EGP', style: TextStyle(color: textSecondary, fontSize: 14, fontFamily: appFont)),
                             const SizedBox(height: 16),
                             LinearProgressIndicator(
                               value: percentage,
                               minHeight: 12,
-                              backgroundColor: onSurface.withValues(alpha: 0.1),
+                              backgroundColor: textColor.withValues(alpha: 0.1),
                               color: _getCategoryColor(category),
                               borderRadius: BorderRadius.circular(6),
                             ),
@@ -205,13 +209,13 @@ class _GoalsPageState extends State<GoalsPage> {
                     const SizedBox(height: 8),
 
                     OutlinedButton(
-                      onPressed: _openSetBudgetModal,
+                      onPressed: () => _openSetBudgetModal(surfaceColor),
                       style: OutlinedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 20),
-                        side: BorderSide(color: onSurface.withValues(alpha: 0.2), width: 1.5),
+                        side: BorderSide(color: textColor.withValues(alpha: 0.2), width: 1.5),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                       ),
-                      child: Text('+ Set a budget limit', style: TextStyle(color: secondaryText, fontSize: 16)),
+                      child: Text('+ Set a budget limit', style: TextStyle(color: textSecondary, fontSize: 16, fontFamily: appFont, fontWeight: FontWeight.w600)),
                     ),
                   ],
                 );

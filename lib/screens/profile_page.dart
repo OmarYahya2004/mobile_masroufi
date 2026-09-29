@@ -1,26 +1,38 @@
 import 'package:flutter/material.dart';
 import '../main.dart'; // Import to access MasroufiApp.of(context)
+import '../core/constants/colors.dart'; // Import your colors file
 
 class ProfilePage extends StatelessWidget {
   const ProfilePage({super.key});
 
+  final String appFont = 'Poppins'; // Custom font consistency
+
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    // Theme setup
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bgColor = isDark ? AppColors.darkBackground : AppColors.lightBackground;
+    final inputFill = isDark ? AppColors.darkInputFill : AppColors.lightInputFill;
+    final textColor = isDark ? AppColors.darkText : AppColors.lightText;
+    final textSecondary = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
+
     final secondaryTextStyle = TextStyle(
-      color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+      color: textSecondary,
+      fontFamily: appFont,
     );
 
     return Scaffold(
+      backgroundColor: bgColor,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        iconTheme: IconThemeData(color: theme.colorScheme.onSurface),
+        iconTheme: IconThemeData(color: textColor),
         title: Text(
           'Profile',
           style: TextStyle(
             fontWeight: FontWeight.bold,
-            color: theme.colorScheme.onSurface,
+            color: AppColors.primaryBlue, // Brand color for headers
+            fontFamily: appFont,
           ),
         ),
       ),
@@ -35,26 +47,26 @@ class ProfilePage extends StatelessWidget {
               children: [
                 CircleAvatar(
                   radius: 50,
-                  backgroundColor: theme.colorScheme.primaryContainer,
+                  backgroundColor: inputFill,
                   child: Icon(
                     Icons.person,
                     size: 60,
-                    color: theme.colorScheme.primary,
+                    color: AppColors.primaryTeal, // Brand teal for default avatar
                   ),
                 ),
                 Container(
                   padding: const EdgeInsets.all(4),
                   decoration: BoxDecoration(
-                    color: theme.colorScheme.surface,
+                    color: bgColor, // Creates a cutout effect
                     shape: BoxShape.circle,
                   ),
                   child: CircleAvatar(
                     radius: 14,
-                    backgroundColor: theme.colorScheme.secondaryContainer,
-                    child: Icon(
+                    backgroundColor: AppColors.primaryBlue,
+                    child: const Icon(
                       Icons.camera_alt,
                       size: 16,
-                      color: theme.colorScheme.onSecondaryContainer,
+                      color: Colors.white,
                     ),
                   ),
                 ),
@@ -68,7 +80,8 @@ class ProfilePage extends StatelessWidget {
             style: TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.bold,
-              color: theme.colorScheme.onSurface,
+              color: textColor,
+              fontFamily: appFont,
             ),
           ),
           const SizedBox(height: 8),
@@ -80,9 +93,11 @@ class ProfilePage extends StatelessWidget {
           
           // Dark Mode Setting Row
           _buildSettingsRow(
-            context: context,
             icon: Icons.dark_mode,
             title: 'Dark Mode',
+            circleBg: inputFill,
+            iconColor: textColor,
+            textColor: textColor,
             onTap: () {
               MasroufiApp.of(context).toggleTheme();
             },
@@ -90,9 +105,11 @@ class ProfilePage extends StatelessWidget {
           
           // Log Out Setting Row
           _buildSettingsRow(
-            context: context,
             icon: Icons.logout,
             title: 'Log Out',
+            circleBg: inputFill,
+            iconColor: AppColors.errorRed, // Use error red to highlight destructive action
+            textColor: AppColors.errorRed,
             onTap: () {
               // Firebase sign out logic
             },
@@ -103,26 +120,27 @@ class ProfilePage extends StatelessWidget {
   }
 
   Widget _buildSettingsRow({
-    required BuildContext context,
     required IconData icon,
     required String title,
+    required Color circleBg,
+    required Color iconColor,
+    required Color textColor,
     required VoidCallback onTap,
   }) {
-    final theme = Theme.of(context);
-    
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 4),
       leading: CircleAvatar(
-        backgroundColor: theme.colorScheme.surfaceContainerHighest,
+        backgroundColor: circleBg,
         radius: 20,
-        child: Icon(icon, color: theme.colorScheme.onSurface, size: 22),
+        child: Icon(icon, color: iconColor, size: 22),
       ),
       title: Text(
         title,
         style: TextStyle(
           fontWeight: FontWeight.w600,
           fontSize: 16,
-          color: theme.colorScheme.onSurface,
+          color: textColor,
+          fontFamily: appFont,
         ),
       ),
       onTap: onTap,
