@@ -1,11 +1,17 @@
 import 'package:flutter/material.dart';
 import '../data/models/expense.dart';
-import '../data/remote/firebase_service.dart';
+import '../core/constants/colors.dart';
+import '../core/constants/constants.dart';
 
 class AddExpenseModal extends StatefulWidget {
   final void Function(Expense expense) onAddExpense;
+  final Expense? initialExpense; // Optional: pass an expense here to Edit instead of Add
 
-  const AddExpenseModal({super.key, required this.onAddExpense});
+  const AddExpenseModal({
+    super.key,
+    required this.onAddExpense,
+    this.initialExpense,
+  });
 
   @override
   State<AddExpenseModal> createState() => _AddExpenseModalState();
@@ -15,33 +21,30 @@ class _AddExpenseModalState extends State<AddExpenseModal> {
   final _amountController = TextEditingController();
   final _noteController = TextEditingController();
   ExpenseCategory _selectedCategory = ExpenseCategory.food;
-  
-  DateTime _selectedDate = DateTime.now(); 
+  DateTime _selectedDate = DateTime.now();
 
-  // Helper for category icons matching the design
-  String _getCategoryIcon(ExpenseCategory category) {
-    switch (category) {
-      case ExpenseCategory.food: return '🍔';
-      case ExpenseCategory.transport: return '🚌';
-      case ExpenseCategory.bills: return '🧾';
-      case ExpenseCategory.shopping: return '🛍️';
-      // Make sure 'fun' and 'other' exist in your ExpenseCategory enum
-      case ExpenseCategory.fun: return '🎬';
-      case ExpenseCategory.other: return '✳️';
-      default: return '📦'; 
+  final String appFont = AppConstants.appFont;
+
+  bool get _isEditing => widget.initialExpense != null;
+
+  @override
+  void initState() {
+    super.initState();
+    // Pre-fill fields if we are editing an existing expense
+    if (_isEditing) {
+      final exp = widget.initialExpense!;
+      _amountController.text = exp.amount.toStringAsFixed(0);
+      _noteController.text = exp.note ?? '';
+      _selectedCategory = exp.category;
+      _selectedDate = exp.date;
     }
-  }
-
-  // Helper to capitalize category names
-  String _getCategoryName(ExpenseCategory category) {
-    final name = category.name;
-    return name[0].toUpperCase() + name.substring(1);
   }
 
   void _presentDatePicker() async {
     final now = DateTime.now();
     final firstDate = DateTime(now.year - 1, now.month, now.day);
-    
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     final pickedDate = await showDatePicker(
       context: context,
       initialDate: _selectedDate,
@@ -50,7 +53,19 @@ class _AddExpenseModalState extends State<AddExpenseModal> {
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
-            colorScheme: Theme.of(context).colorScheme,
+            colorScheme: isDark
+                ? const ColorScheme.dark(
+                    primary: AppColors.primaryTeal,
+                    onPrimary: Colors.white,
+                    surface: AppColors.darkSurface,
+                    onSurface: AppColors.darkText,
+                  )
+                : const ColorScheme.light(
+                    primary: AppColors.primaryBlue,
+                    onPrimary: Colors.white,
+                    surface: AppColors.lightSurface,
+                    onSurface: AppColors.lightText,
+                  ),
           ),
           child: child!,
         );
@@ -64,22 +79,19 @@ class _AddExpenseModalState extends State<AddExpenseModal> {
     }
   }
 
-  void _submitData() async {
+  void _submitData() {
     final enteredAmount = double.tryParse(_amountController.text);
     if (enteredAmount == null || enteredAmount <= 0) return;
 
-    final newExpense = Expense(
-      id: DateTime.now().toString(), 
+    final expense = Expense(
+      id: _isEditing ? widget.initialExpense!.id : DateTime.now().toString(),
       amount: enteredAmount,
       category: _selectedCategory,
-      note: _noteController.text,
+      note: _noteController.text.trim(),
       date: _selectedDate,
     );
 
-    widget.onAddExpense(newExpense);
-
-    final dbService = FirebaseService();
-    await dbService.addExpense(newExpense);
+    widget.onAddExpense(expense);
 
     if (mounted) {
       Navigator.of(context).pop();
@@ -95,11 +107,17 @@ class _AddExpenseModalState extends State<AddExpenseModal> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final secondaryTextColor = theme.colorScheme.onSurface.withValues(alpha: 0.6);
-    final inputFillColor = theme.colorScheme.surfaceContainerHighest; 
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = isDark ? AppColors.darkText : AppColors.lightText;
+    final secondaryTextColor =
+        isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
+    final inputFillColor =
+        isDark ? AppColors.darkInputFill : AppColors.lightInputFill;
+    final selectedBorderColor =
+        isDark ? AppColors.accentCyan : AppColors.primaryTeal;
 
-    final formattedDate = '${_selectedDate.month.toString().padLeft(2, '0')}/${_selectedDate.day.toString().padLeft(2, '0')}/${_selectedDate.year}';
+    final formattedDate =
+        '${_selectedDate.month.toString().padLeft(2, '0')}/${_selectedDate.day.toString().padLeft(2, '0')}/${_selectedDate.year}';
 
     return Padding(
       padding: EdgeInsets.only(
@@ -108,49 +126,81 @@ class _AddExpenseModalState extends State<AddExpenseModal> {
         right: 24,
         bottom: MediaQuery.of(context).viewInsets.bottom + 24,
       ),
-      child: SingleChildScrollView( 
+      child: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Add expense', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: theme.colorScheme.onSurface)),
+            Text(
+              _isEditing ? 'Edit expense' : 'Add expense',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: isDark ? AppColors.darkText : AppColors.primaryBlue,
+                fontFamily: appFont,
+              ),
+            ),
             const SizedBox(height: 16),
-            
+
             // 1. Amount Field
-            Text('Amount (EGP)', style: TextStyle(color: secondaryTextColor, fontSize: 12)),
+            Text(
+              'Amount (EGP)',
+              style: TextStyle(
+                color: secondaryTextColor,
+                fontSize: 12,
+                fontFamily: appFont,
+              ),
+            ),
             const SizedBox(height: 8),
             TextField(
               controller: _amountController,
               keyboardType: TextInputType.number,
-              style: TextStyle(color: theme.colorScheme.onSurface),
+              style: TextStyle(color: textColor, fontFamily: appFont),
               decoration: InputDecoration(
                 hintText: '0',
-                hintStyle: TextStyle(color: secondaryTextColor),
+                hintStyle: TextStyle(color: secondaryTextColor, fontFamily: appFont),
                 filled: true,
                 fillColor: inputFillColor,
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: selectedBorderColor, width: 1.5),
+                ),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 16,
+                ),
               ),
             ),
             const SizedBox(height: 16),
-            
-            // 2. Category Selection (Updated to 3-column Grid)
-            Text('Category', style: TextStyle(color: secondaryTextColor, fontSize: 12)),
+
+            // 2. Category Selection (3-column Grid)
+            Text(
+              'Category',
+              style: TextStyle(
+                color: secondaryTextColor,
+                fontSize: 12,
+                fontFamily: appFont,
+              ),
+            ),
             const SizedBox(height: 8),
             GridView.builder(
-              shrinkWrap: true, // Needed inside a Column/SingleChildScrollView
-              physics: const NeverScrollableScrollPhysics(), // Disables grid scrolling so parent handles it
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 3, // 3 columns
+                crossAxisCount: 3,
                 crossAxisSpacing: 12,
                 mainAxisSpacing: 12,
-                childAspectRatio: 1.15, // Creates the slightly wide rectangular look
+                childAspectRatio: 1.15,
               ),
               itemCount: ExpenseCategory.values.length,
               itemBuilder: (context, index) {
                 final category = ExpenseCategory.values[index];
                 final isSelected = _selectedCategory == category;
-                
+
                 return InkWell(
                   onTap: () {
                     setState(() => _selectedCategory = category);
@@ -158,23 +208,31 @@ class _AddExpenseModalState extends State<AddExpenseModal> {
                   borderRadius: BorderRadius.circular(12),
                   child: Container(
                     decoration: BoxDecoration(
-                      color: inputFillColor,
+                      color: isSelected
+                          ? AppColors.primaryTeal.withValues(alpha: 0.15)
+                          : inputFillColor,
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(
-                        color: isSelected ? theme.colorScheme.primary : Colors.transparent,
+                        color: isSelected ? selectedBorderColor : Colors.transparent,
                         width: 1.5,
                       ),
                     ),
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Text(_getCategoryIcon(category), style: const TextStyle(fontSize: 24)),
+                        Text(
+                          AppConstants.getCategoryIcon(category),
+                          style: const TextStyle(fontSize: 24),
+                        ),
                         const SizedBox(height: 8),
                         Text(
-                          _getCategoryName(category),
+                          AppConstants.getCategoryName(category),
                           style: TextStyle(
-                            color: theme.colorScheme.onSurface,
+                            color: textColor,
                             fontSize: 12,
+                            fontFamily: appFont,
+                            fontWeight:
+                                isSelected ? FontWeight.bold : FontWeight.normal,
                           ),
                         ),
                       ],
@@ -184,27 +242,51 @@ class _AddExpenseModalState extends State<AddExpenseModal> {
               },
             ),
             const SizedBox(height: 16),
-            
+
             // 3. Note Field
-            Text('Note (optional)', style: TextStyle(color: secondaryTextColor, fontSize: 12)),
+            Text(
+              'Note (optional)',
+              style: TextStyle(
+                color: secondaryTextColor,
+                fontSize: 12,
+                fontFamily: appFont,
+              ),
+            ),
             const SizedBox(height: 8),
             TextField(
               controller: _noteController,
               keyboardType: TextInputType.text,
-              style: TextStyle(color: theme.colorScheme.onSurface),
+              style: TextStyle(color: textColor, fontFamily: appFont),
               decoration: InputDecoration(
                 hintText: 'e.g. Uber to campus',
-                hintStyle: TextStyle(color: secondaryTextColor),
+                hintStyle: TextStyle(color: secondaryTextColor, fontFamily: appFont),
                 filled: true,
                 fillColor: inputFillColor,
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: selectedBorderColor, width: 1.5),
+                ),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 16,
+                ),
               ),
             ),
             const SizedBox(height: 16),
-            
+
             // 4. Date Picker Field
-            Text('Date', style: TextStyle(color: secondaryTextColor, fontSize: 12)),
+            Text(
+              'Date',
+              style: TextStyle(
+                color: secondaryTextColor,
+                fontSize: 12,
+                fontFamily: appFont,
+              ),
+            ),
             const SizedBox(height: 8),
             InkWell(
               onTap: _presentDatePicker,
@@ -220,15 +302,23 @@ class _AddExpenseModalState extends State<AddExpenseModal> {
                   children: [
                     Text(
                       formattedDate,
-                      style: TextStyle(color: theme.colorScheme.onSurface, fontSize: 16),
+                      style: TextStyle(
+                        color: textColor,
+                        fontSize: 16,
+                        fontFamily: appFont,
+                      ),
                     ),
-                    Icon(Icons.calendar_today, color: theme.colorScheme.onSurface, size: 20),
+                    Icon(
+                      Icons.calendar_today,
+                      color: AppColors.primaryTeal,
+                      size: 20,
+                    ),
                   ],
                 ),
               ),
             ),
             const SizedBox(height: 24),
-            
+
             // Buttons
             Row(
               children: [
@@ -237,9 +327,19 @@ class _AddExpenseModalState extends State<AddExpenseModal> {
                     onPressed: () => Navigator.of(context).pop(),
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 16),
-                      side: BorderSide(color: secondaryTextColor),
+                      side: BorderSide(color: secondaryTextColor.withValues(alpha: 0.5)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
-                    child: Text('Cancel', style: TextStyle(color: theme.colorScheme.onSurface)),
+                    child: Text(
+                      'Cancel',
+                      style: TextStyle(
+                        color: textColor,
+                        fontFamily: appFont,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                   ),
                 ),
                 const SizedBox(width: 16),
@@ -247,11 +347,20 @@ class _AddExpenseModalState extends State<AddExpenseModal> {
                   child: ElevatedButton(
                     onPressed: _submitData,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: theme.colorScheme.primary,
-                      foregroundColor: theme.colorScheme.onPrimary,
+                      backgroundColor: AppColors.primaryTeal,
+                      foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
-                    child: const Text('Save expense', style: TextStyle(fontWeight: FontWeight.bold)),
+                    child: Text(
+                      _isEditing ? 'Update expense' : 'Save expense',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontFamily: appFont,
+                      ),
+                    ),
                   ),
                 ),
               ],

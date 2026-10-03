@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../data/models/expense.dart';
 import '../widgets/add_expense_modal.dart';
+import '../widgets/expense_item_tile.dart'; // Reusable expense item widget
 import '../screens/profile_page.dart';
 import '../data/remote/firebase_service.dart';
-import '../core/constants/colors.dart'; // Import your new colors file
+import '../core/constants/colors.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -14,8 +16,7 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   final FirebaseService _firebaseService = FirebaseService();
-  // Set your unique font here (ensure it is loaded in pubspec.yaml)
-  final String appFont = 'Poppins'; 
+  final String appFont = 'Poppins';
 
   void _openAddExpenseOverlay(Color surfaceColor) {
     showModalBottomSheet(
@@ -33,38 +34,9 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Future<void> _confirmAndDelete(BuildContext context, Expense expense, Color surfaceColor, Color textColor) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: surfaceColor,
-        title: Text('Delete Expense', style: TextStyle(color: textColor, fontFamily: appFont, fontWeight: FontWeight.bold)),
-        content: Text('Are you sure you want to delete this expense?', style: TextStyle(color: textColor.withValues(alpha: 0.8), fontFamily: appFont)),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text('Cancel', style: TextStyle(color: AppColors.primaryTeal, fontFamily: appFont)),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.errorRed),
-            onPressed: () => Navigator.pop(ctx, true),
-            child: Text('Delete', style: TextStyle(color: Colors.white, fontFamily: appFont)),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed == true) {
-      await _firebaseService.deleteExpense(expense.id);
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
-    // Determine if the device is in dark mode
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    
-    // Assign colors based on mode directly from your file
     final bgColor = isDark ? AppColors.darkBackground : AppColors.lightBackground;
     final surfaceColor = isDark ? AppColors.darkSurface : AppColors.lightSurface;
     final textColor = isDark ? AppColors.darkText : AppColors.lightText;
@@ -75,47 +47,99 @@ class _HomePageState extends State<HomePage> {
       fontFamily: appFont,
     );
 
+    // Fetch the current user data
+    final user = FirebaseAuth.instance.currentUser;
+    // Fallback to email prefix or 'User' if display name is not set
+    final userName = (user?.displayName != null && user!.displayName!.isNotEmpty)
+        ? user.displayName!
+        : (user?.email?.split('@').first ?? 'User');
+    final userInitial = userName.isNotEmpty ? userName[0].toUpperCase() : '?';
+
     return Scaffold(
       backgroundColor: bgColor,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        title: Row(
           children: [
+            // Masroufi Logo
+            ClipOval(
+              child: Image.asset(
+                'lib/assets/icon/masroufi_logo_cropped2.png',
+                height: 36,
+                width: 36,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) => Icon(
+                  Icons.account_balance_wallet,
+                  color: AppColors.primaryBlue,
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
             Text(
-              'Masroufi', 
+              'Masroufi',
               style: TextStyle(
-                fontWeight: FontWeight.bold, 
-                fontSize: 26, 
-                color: AppColors.primaryBlue, // Use logo's deep blue for the brand name
+                fontWeight: FontWeight.bold,
+                fontSize: 26,
+                color: AppColors.primaryBlue,
                 fontFamily: appFont,
               ),
             ),
           ],
         ),
         actions: [
-          IconButton(
-            icon: Icon(Icons.person_outline, color: textColor),
-            onPressed: () {
+          // User Name
+          Center(
+            child: Padding(
+              padding: const EdgeInsets.only(right: 12.0),
+              child: Text(
+                userName,
+                style: TextStyle(
+                  color: textColor,
+                  fontFamily: appFont,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 14,
+                ),
+              ),
+            ),
+          ),
+          // User Initial Avatar (Clickable to go to Profile)
+          GestureDetector(
+            onTap: () {
               Navigator.push(
                 context,
                 MaterialPageRoute(builder: (context) => const ProfilePage()),
               );
             },
+            child: CircleAvatar(
+              radius: 18,
+              backgroundColor: AppColors.primaryTeal,
+              child: Text(
+                userInitial,
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontFamily: appFont,
+                ),
+              ),
+            ),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 16),
         ],
       ),
       body: StreamBuilder<List<Expense>>(
         stream: _firebaseService.getExpenses(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return Center(child: CircularProgressIndicator(color: AppColors.primaryTeal));
+            return const Center(
+              child: CircularProgressIndicator(color: AppColors.primaryTeal),
+            );
           }
 
           if (snapshot.hasError) {
-            return Center(child: Text('Error loading expenses', style: secondaryTextStyle));
+            return Center(
+              child: Text('Error loading expenses', style: secondaryTextStyle),
+            );
           }
 
           final expenses = snapshot.data ?? [];
@@ -141,6 +165,10 @@ class _HomePageState extends State<HomePage> {
             }
           }
 
+          // Sort by date descending (newest first) and take only the last 8
+          final sortedExpenses = [...expenses]..sort((a, b) => b.date.compareTo(a.date));
+          final recentExpenses = sortedExpenses.take(6).toList();
+
           return Padding(
             padding: const EdgeInsets.all(16.0),
             child: Column(
@@ -149,7 +177,6 @@ class _HomePageState extends State<HomePage> {
                 Container(
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
-                    // Use a gradient based on the logo colors for the main card
                     gradient: const LinearGradient(
                       colors: [AppColors.primaryBlue, AppColors.primaryTeal],
                       begin: Alignment.topLeft,
@@ -162,14 +189,17 @@ class _HomePageState extends State<HomePage> {
                         blurRadius: 10,
                         offset: const Offset(0, 5),
                       )
-                    ]
+                    ],
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text('Spent this month', style: TextStyle(color: Colors.white70, fontFamily: appFont)),
                       const SizedBox(height: 8),
-                      Text('${spentThisMonth.toStringAsFixed(0)} EGP', style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.white, fontFamily: appFont)),
+                      Text(
+                        '${spentThisMonth.toStringAsFixed(0)} EGP',
+                        style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.white, fontFamily: appFont),
+                      ),
                       const SizedBox(height: 20),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -178,14 +208,20 @@ class _HomePageState extends State<HomePage> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text('Today', style: TextStyle(color: Colors.white70, fontFamily: appFont)),
-                              Text('${spentToday.toStringAsFixed(0)} EGP', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontFamily: appFont)),
+                              Text(
+                                '${spentToday.toStringAsFixed(0)} EGP',
+                                style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontFamily: appFont),
+                              ),
                             ],
                           ),
                           Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text('This week', style: TextStyle(color: Colors.white70, fontFamily: appFont)),
-                              Text('${spentThisWeek.toStringAsFixed(0)} EGP', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontFamily: appFont)),
+                              Text(
+                                '${spentThisWeek.toStringAsFixed(0)} EGP',
+                                style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontFamily: appFont),
+                              ),
                             ],
                           ),
                         ],
@@ -195,53 +231,39 @@ class _HomePageState extends State<HomePage> {
                         width: double.infinity,
                         child: ElevatedButton(
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.accentCyan, // Bright color from arrow logo
+                            backgroundColor: AppColors.accentCyan,
                             foregroundColor: AppColors.primaryBlue,
                             padding: const EdgeInsets.symmetric(vertical: 16),
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                           ),
                           onPressed: () => _openAddExpenseOverlay(surfaceColor),
-                          child: Text('+ Add expense', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, fontFamily: appFont)),
+                          child: Text(
+                            '+ Add expense',
+                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, fontFamily: appFont),
+                          ),
                         ),
                       )
                     ],
                   ),
                 ),
                 const SizedBox(height: 24),
-                Text('Recent', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: textColor, fontFamily: appFont)),
+                Text(
+                  'Recent',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: textColor, fontFamily: appFont),
+                ),
                 const SizedBox(height: 16),
-                
                 Expanded(
-                  child: expenses.isEmpty
+                  child: recentExpenses.isEmpty
                       ? Center(child: Text('No recent expenses.', style: secondaryTextStyle))
                       : ListView.builder(
-                          itemCount: expenses.length,
+                          itemCount: recentExpenses.length,
                           itemBuilder: (ctx, index) {
-                            final exp = expenses[index];
-                            return Container(
-                              margin: const EdgeInsets.only(bottom: 12),
-                              decoration: BoxDecoration(
-                                color: surfaceColor,
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: ListTile(
-                                leading: Text(exp.categoryIcon, style: const TextStyle(fontSize: 24)),
-                                title: Text(exp.categoryName, style: TextStyle(fontWeight: FontWeight.bold, color: textColor, fontFamily: appFont)),
-                                subtitle: Text(
-                                  '${exp.date.year}-${exp.date.month.toString().padLeft(2, '0')}-${exp.date.day.toString().padLeft(2, '0')}',
-                                  style: secondaryTextStyle,
-                                ),
-                                trailing: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Text('${exp.amount.toStringAsFixed(0)} EGP', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: textColor, fontFamily: appFont)),
-                                    IconButton(
-                                      icon: Icon(Icons.close, color: textSecondary.withValues(alpha: 0.4)),
-                                      onPressed: () => _confirmAndDelete(context, exp, surfaceColor, textColor),
-                                    ),
-                                  ],
-                                ),
-                              ),
+                            final exp = recentExpenses[index];
+                            return ExpenseItemTile(
+                              expense: exp,
+                              showCard: true,
+                              appFont: appFont,
+                              onDelete: () => _firebaseService.deleteExpense(exp.id),
                             );
                           },
                         ),

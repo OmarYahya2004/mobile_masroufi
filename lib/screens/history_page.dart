@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import '../data/remote/firebase_service.dart';
 import '../data/models/expense.dart';
-import '../core/constants/colors.dart'; // Import your colors file
+import '../widgets/expense_item_tile.dart'; // Reusable expense item widget
+import '../core/constants/colors.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import '../screens/profile_page.dart';
 
 enum DateFilter { today, thisWeek, month, allTime }
 
@@ -16,7 +19,7 @@ class _HistoryPageState extends State<HistoryPage> {
   DateFilter _selectedDateFilter = DateFilter.month;
   ExpenseCategory? _selectedCategory; // null means 'All'
   final FirebaseService _firebaseService = FirebaseService();
-  final String appFont = 'Poppins'; // Custom font consistency
+  final String appFont = 'Poppins';
 
   bool _matchesDateFilter(DateTime date) {
     final now = DateTime.now();
@@ -36,32 +39,6 @@ class _HistoryPageState extends State<HistoryPage> {
     }
   }
 
-  Future<void> _confirmAndDelete(BuildContext context, Expense expense, Color surfaceColor, Color textColor) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: surfaceColor,
-        title: Text('Delete Expense', style: TextStyle(color: textColor, fontFamily: appFont, fontWeight: FontWeight.bold)),
-        content: Text('Are you sure you want to delete this expense?', style: TextStyle(color: textColor.withValues(alpha: 0.8), fontFamily: appFont)),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text('Cancel', style: TextStyle(color: AppColors.primaryTeal, fontFamily: appFont)),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.errorRed),
-            onPressed: () => Navigator.pop(ctx, true),
-            child: Text('Delete', style: TextStyle(color: Colors.white, fontFamily: appFont)),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed == true) {
-      await _firebaseService.deleteExpense(expense.id);
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     // Theme setup
@@ -72,12 +49,90 @@ class _HistoryPageState extends State<HistoryPage> {
     final textColor = isDark ? AppColors.darkText : AppColors.lightText;
     final textSecondary = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
 
+
+
+
+
+
+    // Fetch the current user data
+    final user = FirebaseAuth.instance.currentUser;
+    // Fallback to email prefix or 'User' if display name is not set
+    final userName = (user?.displayName != null && user!.displayName!.isNotEmpty)
+        ? user.displayName!
+        : (user?.email?.split('@').first ?? 'User');
+    final userInitial = userName.isNotEmpty ? userName[0].toUpperCase() : '?';
+
     return Scaffold(
       backgroundColor: bgColor,
       appBar: AppBar(
-        title: Text('History', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.primaryBlue, fontFamily: appFont)),
         backgroundColor: Colors.transparent,
         elevation: 0,
+        title: Row(
+          children: [
+            // Masroufi Logo
+            ClipOval(
+              child: Image.asset(
+                'lib/assets/icon/masroufi_logo_cropped2.png',
+                height: 36,
+                width: 36,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) => Icon(
+                  Icons.account_balance_wallet,
+                  color: AppColors.primaryBlue,
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Text(
+              'History',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 26,
+                color: AppColors.primaryBlue,
+                fontFamily: appFont,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          // User Name
+          Center(
+            child: Padding(
+              padding: const EdgeInsets.only(right: 12.0),
+              child: Text(
+                userName,
+                style: TextStyle(
+                  color: textColor,
+                  fontFamily: appFont,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 14,
+                ),
+              ),
+            ),
+          ),
+          // User Initial Avatar (Clickable to go to Profile)
+          GestureDetector(
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const ProfilePage()),
+              );
+            },
+            child: CircleAvatar(
+              radius: 18,
+              backgroundColor: AppColors.primaryTeal,
+              child: Text(
+                userInitial,
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontFamily: appFont,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 16),
+        ],
       ),
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -94,11 +149,11 @@ class _HistoryPageState extends State<HistoryPage> {
                   child: ChoiceChip(
                     label: Text(_getFilterName(filter)),
                     selected: isSelected,
-                    selectedColor: AppColors.primaryBlue, // Brand blue for date filters
+                    selectedColor: AppColors.primaryBlue,
                     labelStyle: TextStyle(
-                      color: isSelected ? Colors.white : textColor, 
+                      color: isSelected ? Colors.white : textColor,
                       fontFamily: appFont,
-                      fontWeight: isSelected ? FontWeight.bold : FontWeight.normal
+                      fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                     ),
                     backgroundColor: chipBgColor,
                     side: BorderSide.none,
@@ -126,14 +181,16 @@ class _HistoryPageState extends State<HistoryPage> {
           // 3. Grouped List
           Expanded(
             child: StreamBuilder<List<Expense>>(
-              stream: FirebaseService().getExpenses(),
+              stream: _firebaseService.getExpenses(),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator(color: AppColors.primaryTeal));
+                  return const Center(
+                    child: CircularProgressIndicator(color: AppColors.primaryTeal),
+                  );
                 }
-                
+
                 final allExpenses = snapshot.data ?? [];
-                
+
                 // Apply Filters
                 final filteredExpenses = allExpenses.where((exp) {
                   final matchesCategory = _selectedCategory == null || exp.category == _selectedCategory;
@@ -141,7 +198,12 @@ class _HistoryPageState extends State<HistoryPage> {
                 }).toList();
 
                 if (filteredExpenses.isEmpty) {
-                  return Center(child: Text('No expenses found for these filters.', style: TextStyle(color: textSecondary, fontFamily: appFont)));
+                  return Center(
+                    child: Text(
+                      'No expenses found for these filters.',
+                      style: TextStyle(color: textSecondary, fontFamily: appFont),
+                    ),
+                  );
                 }
 
                 // Group by Date
@@ -178,28 +240,26 @@ class _HistoryPageState extends State<HistoryPage> {
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                Text('${date.day}/${date.month}/${date.year}', style: TextStyle(fontWeight: FontWeight.bold, color: textColor, fontFamily: appFont)),
-                                Text('${dailyTotal.toStringAsFixed(0)} EGP', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.primaryTeal, fontFamily: appFont)),
-                              ],
-                            ),
-                          ),
-                          // Daily Items
-                          ...dailyExpenses.map((exp) => ListTile(
-                            contentPadding: EdgeInsets.zero,
-                            leading: Text(exp.categoryIcon, style: const TextStyle(fontSize: 24)),
-                            title: Text(exp.categoryName, style: TextStyle(fontWeight: FontWeight.bold, color: textColor, fontFamily: appFont)),
-                            subtitle: Text((exp.note == null || exp.note!.isEmpty) ? 'Expense' : exp.note!, style: TextStyle(color: textSecondary, fontFamily: appFont)),
-                            trailing: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text('${exp.amount.toStringAsFixed(0)} EGP', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: textColor, fontFamily: appFont)),
-                                IconButton(
-                                  icon: Icon(Icons.close, color: textSecondary.withValues(alpha: 0.5)),
-                                  onPressed: () => _confirmAndDelete(context, exp, surfaceColor, textColor),
+                                Text(
+                                  '${date.day}/${date.month}/${date.year}',
+                                  style: TextStyle(fontWeight: FontWeight.bold, color: textColor, fontFamily: appFont),
+                                ),
+                                Text(
+                                  '${dailyTotal.toStringAsFixed(0)} EGP',
+                                  style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.primaryTeal, fontFamily: appFont),
                                 ),
                               ],
                             ),
-                          )),
+                          ),
+                          // Daily Items using Reusable Widget
+                          ...dailyExpenses.map(
+                            (exp) => ExpenseItemTile(
+                              expense: exp,
+                              showCard: false,
+                              appFont: appFont,
+                              onDelete: () => _firebaseService.deleteExpense(exp.id),
+                            ),
+                          ),
                         ],
                       ),
                     );
@@ -215,10 +275,14 @@ class _HistoryPageState extends State<HistoryPage> {
 
   String _getFilterName(DateFilter filter) {
     switch (filter) {
-      case DateFilter.today: return 'Today';
-      case DateFilter.thisWeek: return 'This week';
-      case DateFilter.month: return 'Month';
-      case DateFilter.allTime: return 'All Time';
+      case DateFilter.today:
+        return 'Today';
+      case DateFilter.thisWeek:
+        return 'This week';
+      case DateFilter.month:
+        return 'Month';
+      case DateFilter.allTime:
+        return 'All Time';
     }
   }
 
@@ -229,11 +293,11 @@ class _HistoryPageState extends State<HistoryPage> {
       child: ChoiceChip(
         label: Text(label),
         selected: isSelected,
-        selectedColor: AppColors.primaryTeal, // Brand teal for category filters
+        selectedColor: AppColors.primaryTeal,
         labelStyle: TextStyle(
           color: isSelected ? Colors.white : textColor,
           fontFamily: appFont,
-          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal
+          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
         ),
         backgroundColor: chipBgColor,
         side: BorderSide.none,

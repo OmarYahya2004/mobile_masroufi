@@ -26,6 +26,23 @@ class FirebaseService {
       'date': expense.date.toIso8601String(),
     });
   }
+  // Update an existing expense in Firestore
+  Future<void> updateExpense(Expense expense) async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+
+    await _db
+        .collection('users')
+        .doc(user.uid)
+        .collection('expenses')
+        .doc(expense.id)
+        .update({
+      'amount': expense.amount,
+      'category': expense.category.name,
+      'note': expense.note,
+      'date': expense.date.toIso8601String(),
+    });
+  }
 
   Future<void> deleteExpense(String expenseId) async {
     final user = _auth.currentUser;
