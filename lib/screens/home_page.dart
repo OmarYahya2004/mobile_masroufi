@@ -69,7 +69,7 @@ class _HomePageState extends State<HomePage> {
                 height: 36,
                 width: 36,
                 fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) => Icon(
+                errorBuilder: (context, error, stackTrace) => const Icon(
                   Icons.account_balance_wallet,
                   color: AppColors.primaryBlue,
                 ),
@@ -165,11 +165,11 @@ class _HomePageState extends State<HomePage> {
             }
           }
 
-          // Sort by date descending (newest first) and take only the last 8
+          // Sort by date descending (newest first) and take only the last 6
           final sortedExpenses = [...expenses]..sort((a, b) => b.date.compareTo(a.date));
           final recentExpenses = sortedExpenses.take(6).toList();
 
-          return Padding(
+          return SingleChildScrollView(
             padding: const EdgeInsets.all(16.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -252,22 +252,25 @@ class _HomePageState extends State<HomePage> {
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: textColor, fontFamily: appFont),
                 ),
                 const SizedBox(height: 16),
-                Expanded(
-                  child: recentExpenses.isEmpty
-                      ? Center(child: Text('No recent expenses.', style: secondaryTextStyle))
-                      : ListView.builder(
-                          itemCount: recentExpenses.length,
-                          itemBuilder: (ctx, index) {
-                            final exp = recentExpenses[index];
-                            return ExpenseItemTile(
-                              expense: exp,
-                              showCard: true,
-                              appFont: appFont,
-                              onDelete: () => _firebaseService.deleteExpense(exp.id),
-                            );
-                          },
-                        ),
-                ),
+                recentExpenses.isEmpty
+                    ? Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 32.0),
+                        child: Center(child: Text('No recent expenses.', style: secondaryTextStyle)),
+                      )
+                    : ListView.builder(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        itemCount: recentExpenses.length,
+                        itemBuilder: (ctx, index) {
+                          final exp = recentExpenses[index];
+                          return ExpenseItemTile(
+                            expense: exp,
+                            showCard: true,
+                            appFont: appFont,
+                            onDelete: () => _firebaseService.deleteExpense(exp.id),
+                          );
+                        },
+                      ),
               ],
             ),
           );
