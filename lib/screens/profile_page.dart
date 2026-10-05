@@ -11,15 +11,13 @@ class ProfilePage extends StatelessWidget {
   Widget build(BuildContext context) {
     // Theme setup
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final bgColor = isDark ? AppColors.darkBackground : AppColors.lightBackground;
-    final inputFill = isDark ? AppColors.darkInputFill : AppColors.lightInputFill;
+    final bgColor =
+        isDark ? AppColors.darkBackground : AppColors.lightBackground;
+    final inputFill =
+        isDark ? AppColors.darkInputFill : AppColors.lightInputFill;
     final textColor = isDark ? AppColors.darkText : AppColors.lightText;
-    final textSecondary = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
-
-    final secondaryTextStyle = TextStyle(
-      color: textSecondary,
-      fontFamily: appFont,
-    );
+    final textSecondary =
+        isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
 
     return Scaffold(
       backgroundColor: bgColor,
@@ -36,85 +34,144 @@ class ProfilePage extends StatelessWidget {
           ),
         ),
       ),
-      body: Column(
-        children: [
-          const SizedBox(height: 32),
-          
-          // Profile Picture + Camera Badge
-          Center(
-            child: Stack(
-              alignment: Alignment.bottomRight,
-              children: [
-                CircleAvatar(
-                  radius: 50,
-                  backgroundColor: inputFill,
-                  child: Icon(
-                    Icons.person,
-                    size: 60,
-                    color: AppColors.primaryTeal, // Brand teal for default avatar
-                  ),
-                ),
-                Container(
-                  padding: const EdgeInsets.all(4),
-                  decoration: BoxDecoration(
-                    color: bgColor, // Creates a cutout effect
-                    shape: BoxShape.circle,
-                  ),
-                  child: CircleAvatar(
-                    radius: 14,
-                    backgroundColor: AppColors.primaryBlue,
+      body: SingleChildScrollView(
+        child: Column(
+          children: [
+            const SizedBox(height: 32),
+
+            // Profile Picture + Camera Badge
+            Center(
+              child: Stack(
+                alignment: Alignment.bottomRight,
+                children: [
+                  CircleAvatar(
+                    radius: 50,
+                    backgroundColor: inputFill,
                     child: const Icon(
-                      Icons.camera_alt,
-                      size: 16,
-                      color: Colors.white,
+                      Icons.person,
+                      size: 60,
+                      color: AppColors.primaryTeal, // Brand teal for default avatar
                     ),
                   ),
+                  Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: BoxDecoration(
+                      color: bgColor, // Creates a cutout effect
+                      shape: BoxShape.circle,
+                    ),
+                    child: const CircleAvatar(
+                      radius: 14,
+                      backgroundColor: AppColors.primaryBlue,
+                      child: Icon(
+                        Icons.camera_alt,
+                        size: 16,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            Text(
+              'Omar Yahya',
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: textColor,
+                fontFamily: appFont,
+              ),
+            ),
+
+            const SizedBox(height: 32),
+
+            // 1. Edit Name Row
+            _buildSettingsRow(
+              icon: Icons.person_outline,
+              title: 'Edit Name',
+              circleBg: inputFill,
+              iconColor: textColor,
+              textColor: textColor,
+              trailing: Icon(Icons.chevron_right, color: textSecondary),
+              onTap: () {
+                // Edit Name logic will go here
+              },
+            ),
+
+            // 2. Change Password Row
+            _buildSettingsRow(
+              icon: Icons.lock_outline,
+              title: 'Change Password',
+              circleBg: inputFill,
+              iconColor: textColor,
+              textColor: textColor,
+              trailing: Icon(Icons.chevron_right, color: textSecondary),
+              onTap: () {
+                // Change Password logic will go here
+              },
+            ),
+
+            // 3. Language Setting Row
+            _buildSettingsRow(
+              icon: Icons.language,
+              title: 'Language',
+              circleBg: inputFill,
+              iconColor: textColor,
+              textColor: textColor,
+              trailing: Text(
+                'English',
+                style: TextStyle(
+                  color: AppColors.primaryTeal,
+                  fontWeight: FontWeight.bold,
+                  fontFamily: appFont,
                 ),
-              ],
+              ),
+              onTap: () {
+                // Language toggle logic will go here
+              },
             ),
-          ),
-          const SizedBox(height: 16),
-          
-          Text(
-            'Omar Yahya',
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              color: textColor,
-              fontFamily: appFont,
+
+            // 4. Dark Mode Setting Row with Switch
+            _buildSettingsRow(
+              icon: Icons.dark_mode,
+              title: 'Dark Mode',
+              circleBg: inputFill,
+              iconColor: textColor,
+              textColor: textColor,
+              trailing: Switch(
+                value: isDark,
+                activeColor: Colors.white,
+                activeTrackColor: AppColors.primaryTeal,
+                inactiveThumbColor: textSecondary,
+                inactiveTrackColor: inputFill,
+                onChanged: (_) {
+                  MasroufiApp.of(context).toggleTheme();
+                },
+              ),
+              onTap: () {
+                MasroufiApp.of(context).toggleTheme();
+              },
             ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Profile settings will go here in Phase 3',
-            style: secondaryTextStyle,
-          ),
-          const SizedBox(height: 32),
-          
-          // Dark Mode Setting Row
-          _buildSettingsRow(
-            icon: Icons.dark_mode,
-            title: 'Dark Mode',
-            circleBg: inputFill,
-            iconColor: textColor,
-            textColor: textColor,
-            onTap: () {
-              MasroufiApp.of(context).toggleTheme();
-            },
-          ),
-          
-          // Log Out Setting Row
-          _buildSettingsRow(
-            icon: Icons.logout,
-            title: 'Log Out',
-            circleBg: inputFill,
-            iconColor: AppColors.errorRed, // Use error red to highlight destructive action
-            textColor: AppColors.errorRed,
-            onTap: () {
-              // Firebase sign out logic
-            },
-          ),
-        ],
+
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+              child: Divider(),
+            ),
+
+            // 5. Log Out Setting Row
+            _buildSettingsRow(
+              icon: Icons.logout,
+              title: 'Log Out',
+              circleBg: inputFill,
+              iconColor: AppColors.errorRed,
+              textColor: AppColors.errorRed,
+              onTap: () {
+                // Firebase sign out logic
+              },
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -126,6 +183,7 @@ class ProfilePage extends StatelessWidget {
     required Color iconColor,
     required Color textColor,
     required VoidCallback onTap,
+    Widget? trailing,
   }) {
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 4),
@@ -143,6 +201,7 @@ class ProfilePage extends StatelessWidget {
           fontFamily: appFont,
         ),
       ),
+      trailing: trailing,
       onTap: onTap,
     );
   }
